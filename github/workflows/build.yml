@@ -1,0 +1,46 @@
+name: بناء تطبيق أندرويد (APK)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. سحب الكود من المستودع
+        uses: actions/checkout@v4
+
+      - name: 2. تثبيت أدوات Buildozer
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          pip3 install --upgrade pip
+          pip3 install buildozer cython
+
+      - name: 3. تهيئة ملف buildozer.spec تلقائياً
+        run: |
+          buildozer init
+          # تعديل الملف ليتناسب مع مشروعنا
+          sed -i 's/^title = .*/title = Researcher/' buildozer.spec
+          sed -i 's/^package.name = .*/package.name = academicsearch/' buildozer.spec
+          sed -i 's/^package.domain = .*/package.domain = org.research/' buildozer.spec
+          sed -i 's/^requirements = .*/requirements = python3,kivy,requests,beautifulsoup4,arxiv,pyalex,textacy,spacy,PyPDF2,ebooklib,android/' buildozer.spec
+          sed -i 's/^android.permissions = .*/android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE/' buildozer.spec
+          sed -i 's/^android.api = .*/android.api = 30/' buildozer.spec
+          sed -i 's/^android.minapi = .*/android.minapi = 21/' buildozer.spec
+          echo "icon.filename = icon.png" >> buildozer.spec
+          # إنشاء أيقونة وهمية (لتجنب أخطاء غياب الصورة)
+          echo "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZAAAAAlwSFlzAAAewgAAHsIBbtB1PAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAANaSURBVFhHrZZNSFRhFMcv+/5m3JkR9EMsQrDBei1CIhMqmtAqNNSFgrULWwSii7agQiDRIgSjTUtpUaKgUmJBalKiaNOCGkSJiuBGNLIgkpm5o2lDju/7zNxj7p3pvTOKM3Tgfufc3/l/v+ec5wb+P/6TIGKZcHd3N/3/dHExu8CjqgJvbW2B1tbWAsuyLJxHBwpYc/ST/XmnZJKlWIWI2IXMFlZXVzGdTmNubg4TExOYmJjAxMQEgW3bNm3btqN9sgtc7A8hHh7E0OCFfDkUCqGtrQ1tbW3o7u5GS0uLUJscjR8igc0KOAq5a4lWHTIAn7UeOcBEG7VxEl2Do3i3YSKbzaKtrQ1DQ0OIRCKIx+NoampCLBaT9pOTE2xubmJrawvpdBrr6+sVcj80j0Z+BwMcgKcZbMPc2gdsOb/lfNDQ0IBQKIRwOCxqtVoR44UIpWg0il6H5b1oePEMs7MNvwP4adnzPzq7u9RCd3c3EokEkskkstks0uk0RkZGpF0qBWDnYLKcYV07AEpU7xNwOzYyMpKjFgszMpVKYmRkBMlkUuSfmnAsiP1ZBNggSniSAt7l20gkEgj5EBIJg/dP2sBSwMDEHjKZTBWANgN7m6IyxQU6dKtrmW3SAIzp6PJtGVy4+CqA1dVVJIt8bQMs/nAfjZP7igQ3h5YwLZBlq2cLqSUgR7ACnEvyTjilHtBAwzJYibKSHg4gNFcC2T1y8VKRTeiDc4MuoP0FWrgG5bC0HmG7aeBq/hasPZig+96zPCd3lG01LWduG8BlvBChBBhJbDAJsFz6qwGYpikp4mJiYgKZTCbH1CwBopj2I4GSjMP8XGAvKKFbh6vra6x+XsHWlw08mn4qaZIV9dbHWVwdmcaEhw9vVgzoVcfJ/nN9PT0wKyYBn/fPG56y7z3PAu+5CJIAprwF8gfIyHf30DQ2p7NhLpPJYHJyUhQp6U8ETmheW5RMDdcAPM8D7fg7W85rW0NLS4sUBKWATV3s2Nndwxc+96vgsO8+oJ8hjuC/eDkCAQFX0SSNRu0daVGLft4/6fehOooA/xQnjyS2QwAAAABJRU5ErkJggg==" | base64 -d > icon.png
+
+      - name: 4. بناء ملف APK (السحر يحدث هنا)
+        run: |
+          buildozer android debug deploy
+          ls -la bin/
+
+      - name: 5. رفع ملف APK كقطعة قابلة للتحميل
+        uses: actions/upload-artifact@v4
+        with:
+          name: تطبيق-الباحث-الأكاديمي
+          path: bin/*.apk
